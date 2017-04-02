@@ -1,6 +1,7 @@
 package cricsheet
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -17,6 +18,12 @@ type Wicket struct {
 	Fielders  []string `yaml:"fielders"`
 }
 
+type Runs struct {
+	Batsman int `yaml:"batsman"`
+	Extras  int `yaml:"extras"`
+	Total   int `yaml:"total"`
+}
+
 // Delivery describes a cricket delivery
 type Delivery struct {
 	Over       int
@@ -24,13 +31,9 @@ type Delivery struct {
 	Batsman    string `yaml:"batsman"`
 	NonStriker string `yaml:"non_striker"`
 	Bowler     string `yaml:"bowler"`
-	Runs       struct {
-		Batsman int `yaml:"batsman"`
-		Extras  int `yaml:"extras"`
-		Total   int `yaml:"total"`
-	} `yaml:"runs"`
-	Wicket Wicket `yaml:"wicket"`
-	Extras map[string]int
+	Runs       Runs   `yaml:"runs"`
+	Wicket     Wicket `yaml:"wicket"`
+	Extras     map[string]int
 }
 
 // Inning describes an individual innings in cricket
@@ -110,10 +113,18 @@ func (g *Game) Flatten() (events []Event, err error) {
 
 					// Pull the over and ball from the key
 					overBall := strings.SplitN(dk, ".", 2)
+					if len(overBall) != 2 {
+						log.Errorf("Failed to split over and ball from: %s", dk)
+						return nil, fmt.Errorf("Failed to split over and ball")
+					}
 					cse.Delivery.Over, err = strconv.Atoi(overBall[0])
+					if err != nil {
+						log.WithFields(log.Fields{"error": err}).Error("Failed to get over for delivery")
+						return nil, err
+					}
 					cse.Delivery.Ball, err = strconv.Atoi(overBall[1])
 					if err != nil {
-						log.WithFields(log.Fields{"error": err}).Error("Failed to get over and ball for delivery")
+						log.WithFields(log.Fields{"error": err}).Error("Failed to get ball for delivery")
 						return nil, err
 					}
 					cses = append(cses, cse)
